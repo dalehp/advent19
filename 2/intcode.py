@@ -8,6 +8,7 @@ class Operation(Enum):
     MULTIPLY = 2
     END = 99
 
+
 TARGET = 19690720
 
 
@@ -27,6 +28,7 @@ def intcode(code: List[int]) -> List[int]:
 
     return new_code
 
+
 def find_inputs(code: List[int], target: int) -> Tuple[Optional[int], Optional[int]]:
     for noun in range(100):
         for verb in range(100):
@@ -37,7 +39,6 @@ def find_inputs(code: List[int], target: int) -> Tuple[Optional[int], Optional[i
 
     return None, None
 
-        
 
 if __name__ == "__main__":
     with open("input.txt") as f:
