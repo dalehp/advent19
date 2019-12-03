@@ -11,6 +11,6 @@ import pytest
     ],
 )
 def test_add(input, expected):
-    intcode(input)
-    assert input == expected
+    output = intcode(input)
+    assert output == expected
 
