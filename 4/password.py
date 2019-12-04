@@ -28,6 +28,5 @@ def guess_valid(guess: int):
 
 
 if __name__ == "__main__":
-    print(guess_valid(111122))
     guesses = count_guesses(307237, 769058)
     print(f"Number of guesses: {guesses}")
