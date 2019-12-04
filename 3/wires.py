@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum, auto
 from typing import DefaultDict, Iterable, Iterator, List, Set, Tuple
 
@@ -43,28 +44,13 @@ class WireGrid:
                 self.grid[(x, y)].add(wire_id)
 
     def find_closest_crossing(self, wires: Iterable[int]) -> Index:
-        # TODO: Find a way to definitely terminate
-        i = 1
         wire_set = set(wires)
-        while True:
-            for index in indices_at_distance(i):
-                if self.grid[index] == wire_set:
-                    return index
-            i += 1
-
-
-def indices_at_distance(distance: int) -> Set[Index]:
-    indices = set()
-    for i in range(distance):
-        indices.add((i, distance - i))
-        indices.add((i, i - distance))
-        indices.add((distance - i, i))
-        indices.add((distance - i, -i))
-        indices.add((-i, distance - i))
-        indices.add((-i, i - distance))
-        indices.add((i - distance, i))
-        indices.add((i - distance, -i))
-    return indices
+        crossings = {
+            idx
+            for idx, wires in self.grid.items()
+            if wires == wire_set and idx != (0, 0)
+        }
+        return min(crossings, key=lambda x: abs(x[0]) + abs(x[1]))
 
 
 def parse_wire(wire_str: str) -> Iterator[WireSegment]:
@@ -84,6 +70,8 @@ if __name__ == "__main__":
         wire = parse_wire(wire_str)
         grid.add_wire(wire, idx)
 
+    now = datetime.now()
     crossing = grid.find_closest_crossing([1, 0])
+    print(f"Time taken: {datetime.now() - now}")
     print(f"Closest: {crossing}")
     print(f"Distance: {abs(crossing[0]) + abs(crossing[1])}")
