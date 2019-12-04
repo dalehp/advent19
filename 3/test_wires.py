@@ -1,4 +1,4 @@
-from wires import indices_at_distance, parse_wire, Direction, WireGrid, WireSegment
+from wires import parse_wire, Direction, WireGrid, WireSegment
 
 
 def test_parse():
@@ -18,8 +18,3 @@ def test_add_wire():
     grid.add_wire(input, 0)
     expected_indices = {(0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (2, 3)}
     assert set(grid.grid.keys()) == expected_indices
-
-
-def test_indices():
-    expected = {(1, 0), (-1, 0), (0, 1), (0, -1)}
-    assert expected == indices_at_distance(1)
