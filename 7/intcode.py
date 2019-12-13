@@ -1,3 +1,4 @@
+import asyncio
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -49,7 +50,6 @@ class Instruction:
 class IntcodeTerminated(Exception):
     pass
 
-
 def get_instruction(instruction_number: int) -> Instruction:
     code = str(instruction_number)
     op = Operation(int(code[-2:]))
@@ -68,68 +68,126 @@ def get_value(code: List[int], mode: Mode, value: int) -> int:
     else:
         raise ValueError(f"Unknown mode type {mode}")
 
-
-def intcode(code: List[int], inputs: List[int]) -> int:
-    new_code = copy(code)
-
-    i = 0
-    instruction = get_instruction(new_code[i])
-    while instruction.operation != Operation.END:
-        pointer_modified = False
-        if instruction.operation == Operation.ADD:
-            lh, rh, result = new_code[i + 1 : i + 4]
-            lh_value = get_value(new_code, instruction.parameters[0], lh)
-            rh_value = get_value(new_code, instruction.parameters[1], rh)
-            new_code[result] = lh_value + rh_value
-        elif instruction.operation == Operation.MULTIPLY:
-            lh, rh, result = new_code[i + 1 : i + 4]
-            lh_value = get_value(new_code, instruction.parameters[0], lh)
-            rh_value = get_value(new_code, instruction.parameters[1], rh)
-            new_code[result] = lh_value * rh_value
-        elif instruction.operation == Operation.INPUT:
-            pos = new_code[i + 1]
-            new_code[pos] = inputs.pop(0)
-        elif instruction.operation == Operation.OUTPUT:
-            pos = new_code[i + 1]
-            return new_code[pos]
-        elif instruction.operation in JUMP_OPS:
-            check, pointer = new_code[i + 1 : i + 3]
-            check_value = get_value(new_code, instruction.parameters[0], check)
-            pointer_value = get_value(new_code, instruction.parameters[1], pointer)
-
-            if (check_value and instruction.operation == Operation.JUMP_TRUE) or (
-                not check_value and instruction.operation == Operation.JUMP_FALSE
-            ):
-                i = pointer_value
-                pointer_modified = True
-        elif instruction.operation == Operation.LESS_THAN:
-            lh, rh, result = new_code[i + 1 : i + 4]
-            lh_value = get_value(new_code, instruction.parameters[0], lh)
-            rh_value = get_value(new_code, instruction.parameters[1], rh)
-            new_code[result] = int(lh_value < rh_value)
-        elif instruction.operation == Operation.EQUALS:
-            lh, rh, result = new_code[i + 1 : i + 4]
-            lh_value = get_value(new_code, instruction.parameters[0], lh)
-            rh_value = get_value(new_code, instruction.parameters[1], rh)
-            new_code[result] = int(lh_value == rh_value)
-
-        if not pointer_modified:
-            i += len(instruction.parameters) + 1
-
-        instruction = get_instruction(new_code[i])
-
-    raise IntcodeTerminated("Program did not output")
+class State(Enum):
+    NOT_STARTED = auto()
+    RUNNING = auto()
+    WAITING = auto()
+    HALTED = auto()
 
 
-if __name__ == "__main__":
+class Computer():
+
+    def __init__(self, code: List[int], inputs: Optional[List[int]] = None):
+        self.code = copy(code)
+        if inputs:
+            self.inputs = inputs
+        else:
+            self.inputs = []
+        self.output: Optional[Computer] = None
+        self.state = State.NOT_STARTED
+        self.pt = 0
+        self.final_output: Optional[int] = None
+
+    async def add_input(self, input: int):
+        if self.state == State.HALTED:
+            raise IntcodeTerminated()
+
+        self.inputs.append(input)
+        if self.state == State.WAITING:
+            await self.run()
+
+    async def run(self) -> None:
+        self.state = State.RUNNING
+        instruction = get_instruction(self.code[self.pt])
+        while instruction.operation != Operation.END:
+            pointer_modified = False
+            if instruction.operation == Operation.ADD:
+                lh, rh, result = self.code[self.pt + 1 : self.pt + 4]
+                lh_value = get_value(self.code, instruction.parameters[0], lh)
+                rh_value = get_value(self.code, instruction.parameters[1], rh)
+                self.code[result] = lh_value + rh_value
+            elif instruction.operation == Operation.MULTIPLY:
+                lh, rh, result = self.code[self.pt + 1 : self.pt + 4]
+                lh_value = get_value(self.code, instruction.parameters[0], lh)
+                rh_value = get_value(self.code, instruction.parameters[1], rh)
+                self.code[result] = lh_value * rh_value
+            elif instruction.operation == Operation.INPUT:
+                if self.inputs:
+                    pos = self.code[self.pt + 1]
+                    self.code[pos] = self.inputs.pop(0)
+                else:
+                    self.state = State.WAITING
+                    return None
+            elif instruction.operation == Operation.OUTPUT:
+                pos = self.code[self.pt + 1]
+                out = self.code[pos]
+                if self.output is not None:
+                    try:
+                        await self.output.add_input(out)
+                    except IntcodeTerminated:
+                        self.final_output = out
+                        return
+                else:
+                    self.final_output = out
+            elif instruction.operation in JUMP_OPS:
+                check, pointer = self.code[self.pt + 1 : self.pt + 3]
+                check_value = get_value(self.code, instruction.parameters[0], check)
+                pointer_value = get_value(self.code, instruction.parameters[1], pointer)
+
+                if (check_value and instruction.operation == Operation.JUMP_TRUE) or (
+                    not check_value and instruction.operation == Operation.JUMP_FALSE
+                ):
+                    self.pt = pointer_value
+                    pointer_modified = True
+            elif instruction.operation == Operation.LESS_THAN:
+                lh, rh, result = self.code[self.pt + 1 : self.pt + 4]
+                lh_value = get_value(self.code, instruction.parameters[0], lh)
+                rh_value = get_value(self.code, instruction.parameters[1], rh)
+                self.code[result] = int(lh_value < rh_value)
+            elif instruction.operation == Operation.EQUALS:
+                lh, rh, result = self.code[self.pt + 1 : self.pt + 4]
+                lh_value = get_value(self.code, instruction.parameters[0], lh)
+                rh_value = get_value(self.code, instruction.parameters[1], rh)
+                self.code[result] = int(lh_value == rh_value)
+
+            if not pointer_modified:
+                self.pt += len(instruction.parameters) + 1
+
+            instruction = get_instruction(self.code[self.pt])
+
+        self.state = State.HALTED
+
+async def run():
     with open("input.txt") as f:
         for line in f:
             code = [int(i) for i in line.split(",")]
     
     highest_signal = 0
     for perm in permutations(range(5)):
-        signal = 0
-        for phase in perm:
-            signal = intcode(code, [phase, signal])
-        highest_signal = max(signal, highest_signal)
+        computers = [Computer(code, [phase]) for phase in perm]
+        for i, computer in enumerate(computers[:-1]):
+            computer.output = computers[i+1]
+        computers[0].inputs.append(0)
+        await asyncio.gather(*(comp.run() for comp in computers))
+
+        highest_signal = max(computers[4].final_output, highest_signal)
     print(highest_signal)
+
+    highest_signal = 0
+    for perm in permutations(range(5, 10)):
+        computers = [Computer(code, [phase]) for phase in perm]
+        for i, computer in enumerate(computers):
+            computer.output = computers[(i+1) % 5]
+        computers[0].inputs.append(0)
+        await asyncio.gather(*(comp.run() for comp in computers))
+        highest_signal = max(computers[4].final_output, highest_signal)
+
+    print(highest_signal)
+
+
+
+if __name__ == "__main__":
+    asyncio.run(run())
+
+
+
