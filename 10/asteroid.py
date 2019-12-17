@@ -13,12 +13,18 @@ class Coordinate:
         self.x = x
         self.y = y
         self.r = sqrt(x*x + y*y)
-        self.theta = - atan2(y, x) - pi / 2
+        # Y direction is down so negate y
+        self.theta = atan2(-y, x)
+        # Transform theta to match problem - starting up and clockwise rather than a/c
+        self.theta = - self.theta + pi / 2
         if self.theta < 0.0:
             self.theta += 2 * pi
 
     def difference(self, other) -> Coordinate:
         return Coordinate(other.x - self.x, other.y - self.y)
+
+    def __add__(self, o: Coordinate) -> Coordinate:
+        return Coordinate(self.x + o.x, self.y + o.y)
 
     def __repr__(self):
         return f"Coordinate(x={self.x}, y={self.y})"
@@ -26,7 +32,7 @@ class Coordinate:
 
 if __name__ == "__main__":
     asteroids: Set[Coordinate] = set()
-    with open("test_input.txt") as f:
+    with open("input.txt") as f:
         for y, line in enumerate(f):
             for x, ast in enumerate(line):
                 if ast == "#":
@@ -48,16 +54,13 @@ if __name__ == "__main__":
 
 
     for angle, coords in best_angles.items():
-        coords.sort(key=lambda x: x.r)
-    print()
-    print(sorted(best_angles.keys()))
-    print(best_angles[0.0])
+        coords.sort(key=lambda x: x.r, reverse=True)
 
     destruction_order = []
     while any(coordinates for coordinates in best_angles.values()):
         for angle in sorted(best_angles.keys()):
             if best_angles[angle]:
-                destruction_order.append(best_angles[angle].pop(0))
-    winner = destruction_order[199]
-    print([Coordinate(c.x + best_coord.x, c.y + best_coord.y) for c in destruction_order])
+                destruction_order.append(best_angles[angle].pop())
+    winner = destruction_order[199] + best_coord
+    print([c + best_coord for c in destruction_order])
     print(winner.x * 100 + winner.y)
