@@ -37,11 +37,11 @@ class Game:
         self.ball_pos = (0, 0)
         self.paddle_pos = (0, 0)
 
-    def draw(self, dir: int = 0) -> None:
-        self.computer.inputs.append(dir)
+    def draw(self, move: int = 0) -> None:
+        self.computer.inputs.append(move)
         try:
             while True:
-                pixel = self.get_pixel(dir)
+                pixel = self.get_pixel(move)
                 if pixel:
                     self.grid[pixel.pos] = pixel.tile
                     if pixel.tile == Tile.BALL:
@@ -52,7 +52,7 @@ class Game:
         except (IntcodeTerminated, InputRequested):
             return
 
-    def get_pixel(self, dir: int) -> Optional[Pixel]:
+    def get_pixel(self) -> Optional[Pixel]:
         x = self.computer.run()
         y = self.computer.run()
         result = self.computer.run()
@@ -108,7 +108,7 @@ if __name__ ==  "__main__":
     g2.draw(0)
     print(g2)
     while True:
-        sleep(0.1)
+        #sleep(0.1)
         g2.draw(get_paddle_input(g2.ball_pos, g2.paddle_pos))
         print(g2)
 
