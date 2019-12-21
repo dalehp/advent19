@@ -1,4 +1,4 @@
-from fft import coefficients, coefficient_i, fft, fft_quick, get_signal
+from fft import coefficients, fft, fft_quick, get_signal
 
 from itertools import islice
 
