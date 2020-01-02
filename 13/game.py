@@ -41,7 +41,7 @@ class Game:
         self.computer.inputs.append(move)
         try:
             while True:
-                pixel = self.get_pixel(move)
+                pixel = self.get_pixel()
                 if pixel:
                     self.grid[pixel.pos] = pixel.tile
                     if pixel.tile == Tile.BALL:
@@ -108,7 +108,7 @@ if __name__ ==  "__main__":
     g2.draw(0)
     print(g2)
     while True:
-        #sleep(0.1)
+        sleep(0.05)
         g2.draw(get_paddle_input(g2.ball_pos, g2.paddle_pos))
         print(g2)
 
