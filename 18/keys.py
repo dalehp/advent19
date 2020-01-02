@@ -75,7 +75,7 @@ class Tile:
 class BFSNode:
     location: Coordinate
     tile: Tile
-    doors: Set[str]
+    doors: int = 0
     depth: int = 0
     parent: Optional[BFSNode] = None
 
@@ -86,7 +86,7 @@ class BFSNode:
 @dataclass
 class DNode:
     positions: Tuple[str, ...]
-    keys: Set[str]
+    keys: int = 0
     dist: int = float("inf")
 
     def __lt__(self, o: DNode):
@@ -111,7 +111,6 @@ class Maze:
     def shortest_path(self):
         start = DNode(
             positions=tuple(self.starts.keys()),
-            keys=frozenset(self.starts.keys()),
             dist=0,
         )
         visited: Dict[Tuple[Tuple[str, ...], FrozenSet[str]], DNode] = {
@@ -121,11 +120,10 @@ class Maze:
 
         while q:
             node = heappop(q)
-            if len(node.keys) == len(self.keys) + len(self.starts):
+            if node.keys == 2 ** len(self.keys) - 1:
                 return node
-            for child, dist in self._neighbour_keys(node.positions, node.keys):
+            for child, child_keys, dist in self._neighbour_keys(node.positions, node.keys):
                 alt = dist + node.dist
-                child_keys = frozenset({*node.keys, *child})
                 child_node = visited.get((child, child_keys))
                 if not child_node:
                     child_node = DNode(positions=child, keys=child_keys)
@@ -138,20 +136,21 @@ class Maze:
         return visited
 
     def _neighbour_keys(
-        self, key_names: Sequence[str], keys: Set[str]
-    ) -> Iterator[Tuple[Tuple[str, ...], int]]:
+        self, key_names: Sequence[str], keys: int
+    ) -> Iterator[Tuple[Tuple[str, ...], int, int]]:
         for i, key_name in enumerate(key_names):
             for neighbour_name, (dist, doors) in self.adj_matrix[key_name].items():
-                if not doors - keys:
+                if doors_unlocked(keys, doors):
                     new_key_names = (
                         *key_names[:i],
                         neighbour_name,
                         *key_names[i + 1 :],
                     )
-                    yield (new_key_names, dist)
+                    child_keys = keys | key_int(neighbour_name)
+                    yield (new_key_names, child_keys, dist)
 
-    def _build_adjacencies(self) -> Dict[str, Dict[str, Tuple[int, Set[str]]]]:
-        adj_map: Dict[str, Dict[str, Tuple[int, Set[str]]]] = {}
+    def _build_adjacencies(self) -> Dict[str, Dict[str, Tuple[int, int]]]:
+        adj_map: Dict[str, Dict[str, Tuple[int, int]]] = {}
         for start_name, start in self.starts.items():
             adj_map[start_name] = self._adjacency_bfs(start)
         for key_name, key_location in self.keys.items():
@@ -172,21 +171,19 @@ class Maze:
                 parent=n,
             )
             if tile.type == TileType.DOOR:
-                child.doors.add(tile.name)
+                child.doors |= key_int(tile.name)
 
             yield child
 
     def _adjacency_bfs(
         self, start_location: Coordinate
-    ) -> Dict[str, Tuple[int, Set[str]]]:
+    ) -> Dict[str, Tuple[int, int]]:
         start = BFSNode(
             location=start_location,
             tile=self.maze[start_location],
-            depth=0,
-            doors=set(),
         )
         q: Deque[BFSNode] = deque([start])
-        adjancancies: Dict[str, Tuple[int, Set[str]]] = {}
+        adjancancies: Dict[str, Tuple[int, int]] = {}
         visited: Set[Coordinate] = {start.location}
         while q:
             node = q.popleft()
@@ -204,15 +201,17 @@ def key_int(key: str) -> int:
     offset = ord(key) - ord("a")
     return 2 ** offset
 
+def doors_unlocked(keys: int, doors: int) -> bool:
+    return not bool(~keys & doors)
+
 
 if __name__ == "__main__":
     maze: Dict[Coordinate, Tile] = {}
-    with open("input.txt") as f:
+    with open("input_2.txt") as f:
         for j, line in enumerate(f):
             for i, char in enumerate(line.strip()):
                 maze[Coordinate(i, j)] = Tile(char)
     m = Maze(maze=maze)
-    print(key_int("d"))
     now = datetime.now()
     ans = m.shortest_path()
     print(f"Time taken: {datetime.now() - now}")
