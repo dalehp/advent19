@@ -1,34 +1,47 @@
+from typing import Optional
+
 from intcode import Computer, IntcodeTerminated
 
+class BeamSearcher():
+    def __init__(self, c: Computer, x: int, y: int):
+        self.c = c
+        self.x = x
+        self.y = y
 
-def in_beam(c: Computer, x: int, y: int) -> bool:
-    c.reset()
-    c.inputs = [x, y]
-    return bool(c.run())
+    def big_enough(self) -> bool:
+        self.find_bottom()
+        top_right_x = self.x + 99
+        top_right_y = self.y - 99
+        if top_right_y < 0:
+            return False
 
-def find_bottom(c, x, y) -> int:
-    y_in_beam = False
+        return self.in_beam(top_right_x, top_right_y)
 
-    # Go to top of the beam
-    while not y_in_beam:
-        y += 1
-        y_in_beam = in_beam(c, x, y)
+    def in_beam(self, x: Optional[int] = None, y: Optional[int] = None) -> bool:
+        c.reset()
+        if not x:
+            x = self.x
+        if not y:
+            y = self.y
 
-    # Go to bottom of beam
-    while y_in_beam:
-        y += 1
-        y_in_beam = in_beam(c, x, y)
-    y -= 1
-    return y
+        c.inputs = [x, y]
+        print(x, y)
+        return bool(c.run())
 
-def big_enough(c, x, y) -> bool:
-    y = find_bottom(c, x, y)
-    top_right_x = x + 99
-    top_right_y = y - 99
-    if top_right_y < 0:
-        return False
+    def find_bottom(self):
+        y_in_beam = False
 
-    return in_beam(c, top_right_x, top_right_y)
+        # Go to top of the beam
+        while not y_in_beam:
+            self.y += 1
+            y_in_beam = self.in_beam()
+
+        # Go to bottom of beam
+        while y_in_beam:
+            self.y += 1
+            y_in_beam = self.in_beam()
+        self.y -= 1
+    
 
 if __name__ == "__main__":
     with open("input.txt") as f:
@@ -44,17 +57,17 @@ if __name__ == "__main__":
     #         beam_affected += 1 if in_beam(c, i, j) else 0
     # print(beam_affected)
 
-    x = 618
-    y = 618
+    x = 100
+    y = 100
+    bs = BeamSearcher(c, x, y)
 
-    while not big_enough(c, x, y):
-        print(x, y)
-        x += 1
+    while not bs.big_enough():
+        print(bs.x, bs.y)
+        bs.x += 1
 
-    print(x)
-    y = find_bottom(c, x, y)
+    print(bs.x)
 
-    print(x * 10000 + y - 99)
+    print(bs.x * 10000 + bs.y - 99)
 
 
             
